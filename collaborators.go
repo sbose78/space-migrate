@@ -49,6 +49,7 @@ func getCollaborators(spaceID string, env string) ([]*Data, error) {
 			fmt.Println(err)
 			return nil, err
 		}
+		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("Collaborators API call %s returned %d", url, resp.StatusCode)
 		}
@@ -59,7 +60,6 @@ func getCollaborators(spaceID string, env string) ([]*Data, error) {
 			fmt.Println(err)
 			return nil, err
 		}
-		resp.Body.Close()
 		fullReturnedUserList = append(fullReturnedUserList, returnedUserList.Data...)
 		next = returnedUserList.Links.Next
 	}
