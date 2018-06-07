@@ -38,7 +38,7 @@ type SpaceAttributes struct {
 
 func getSpacesOwnedByIdentity(username string, env string) ([]*Space, error) {
 	client := &http.Client{}
-	next := fmt.Sprintf("%s/api/namedspaces/%s?page[limit]=2", getServerName(env, WITSERVICE), username)
+	next := fmt.Sprintf("%s/api/namedspaces/%s?page[limit]=20", getServerName(env, WITSERVICE), username)
 	url := ""
 
 	var fullSpaceList []*Space
