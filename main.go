@@ -53,14 +53,20 @@ func migrate(ids []string, env *string, sessionState *string, privateKey *rsa.Pr
 			for _, space := range spacesList {
 				spaceID := *space.ID
 
-				createSpace(spaceID.String(), userID, string(serviceAccountToken), *env)
+				err = createSpace(spaceID.String(), userID, string(serviceAccountToken), *env)
+				if err != nil {
+					panic(err)
+				}
 
 				userList, err := getCollaborators(spaceID.String(), *env)
 				if err != nil {
 					panic(err)
 				}
 
-				addUsersToSpace(userList, spaceID.String(), userID, token, *env)
+				err = addUsersToSpace(userList, spaceID.String(), userID, token, *env)
+				if err != nil {
+					panic(err)
+				}
 
 			}
 
