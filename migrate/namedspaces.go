@@ -1,4 +1,4 @@
-package main
+package migrate
 
 import (
 	"encoding/json"
@@ -36,7 +36,7 @@ type SpaceAttributes struct {
 	Version *int `form:"version,omitempty" json:"version,omitempty" xml:"version,omitempty"`
 }
 
-func getSpacesOwnedByIdentity(username string, env string) ([]*Space, error) {
+func GetSpacesOwnedByIdentity(username string, env string) ([]*Space, error) {
 	client := &http.Client{}
 	next := fmt.Sprintf("%s/api/namedspaces/%s?page[limit]=20", getServerName(env, WITSERVICE), username)
 	url := ""

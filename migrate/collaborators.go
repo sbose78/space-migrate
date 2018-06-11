@@ -1,4 +1,4 @@
-package main
+package migrate
 
 import (
 	"encoding/json"
@@ -27,7 +27,7 @@ type Attributes struct {
 	IdentityID string `json:"identityID"`
 }
 
-func getCollaborators(spaceID string, env string) ([]*Data, error) {
+func GetCollaborators(spaceID string, env string) ([]*Data, error) {
 	client := &http.Client{}
 
 	next := fmt.Sprintf("%s/api/spaces/%s/collaborators?page[limit]=20", getServerName(env, WITSERVICE), spaceID)

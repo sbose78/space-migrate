@@ -9,43 +9,21 @@ import (
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/satori/go.uuid"
+	"github.com/sbose78/space-migrate/migrate"
 )
 
-const (
-	AUTHSERVICE = "auth"
-	WITSERVICE  = "api"
-)
-
-func getServerName(env, service string) string {
-
-	if env == "prod" {
-		return fmt.Sprintf("https://%s.openshift.io", service)
-	} else if env == "prod-preview" {
-		return fmt.Sprintf("https://%s.%s.openshift.io", service, env)
-	} else if service == AUTHSERVICE { // for localhost env
-		return "http://localhost:8089"
-	}
-	return "http://localhost:8080"
-
-}
-
-func migrate(ids []string, env *string, sessionState *string, privateKey *rsa.PrivateKey, serviceAccountToken string) {
+func migrateSpaces(ids []string, env *string, sessionState *string, privateKey *rsa.PrivateKey, serviceAccountToken string) {
 
 	for _, id := range ids {
 		if len(id) > 0 {
 			userID := strings.TrimSpace(id)
-			user, err := loadUser(userID, *env)
+			user, err := migrate.LoadUser(userID, *env)
 			if err != nil {
 				panic(err)
 			}
 			fmt.Printf("%s, %s, %s\n", user.Data.Attributes.Username, user.Data.Attributes.Email, user.Data.Attributes.FullName)
 
-			spacesList, err := getSpacesOwnedByIdentity(user.Data.Attributes.Username, *env)
-			if err != nil {
-				panic(err)
-			}
-
-			token, err := generateToken(privateKey, user, userID, *sessionState, *env)
+			spacesList, err := migrate.GetSpacesOwnedByIdentity(user.Data.Attributes.Username, *env)
 			if err != nil {
 				panic(err)
 			}
@@ -53,20 +31,30 @@ func migrate(ids []string, env *string, sessionState *string, privateKey *rsa.Pr
 			for _, space := range spacesList {
 				spaceID := *space.ID
 
-				err = createSpace(spaceID.String(), userID, string(serviceAccountToken), *env)
+				userList, err := migrate.GetCollaborators(spaceID.String(), *env)
 				if err != nil {
 					panic(err)
 				}
 
-				userList, err := getCollaborators(spaceID.String(), *env)
+				created, err := migrate.CreateSpace(spaceID.String(), userID, serviceAccountToken, *env)
 				if err != nil {
 					panic(err)
 				}
 
-				err = addUsersToSpace(userList, spaceID.String(), userID, token, *env)
+				if !created {
+					// TODO using the same API call :
+					// 1. Check if the space really exists? and panic if not.
+					// 2. If it does, Check if the assignees exist ? If not go to the next step.
+				}
+
+				// Add the users to the space as a 'contributor'
+				err = migrate.AddUsersToSpace(userList, spaceID.String(), userID, serviceAccountToken, *env)
 				if err != nil {
 					panic(err)
 				}
+
+				// TODO:
+				// Verify that the space assignees exist.
 
 			}
 
@@ -101,7 +89,7 @@ func main() {
 		panic(err)
 	}
 
-	ids := getUserIDs(*userIDLoc)
-	migrate(ids, env, sessionState, privateKey, string(serviceAccountToken))
+	ids := migrate.GetUserIDs(*userIDLoc)
+	migrateSpaces(ids, env, sessionState, privateKey, string(serviceAccountToken))
 
 }
