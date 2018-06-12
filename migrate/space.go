@@ -8,6 +8,7 @@ import (
 )
 
 func CreateSpace(spaceID string, creatorID string, serviceAccountToken string, env string) (bool, error) {
+	fmt.Printf("Creating Space resource %s with 'admin' %s in %s ... \n", spaceID, creatorID, env)
 	code, err := createSpace(spaceID, creatorID, serviceAccountToken, env)
 	if err != nil {
 		return false, err
@@ -26,7 +27,7 @@ func CreateSpace(spaceID string, creatorID string, serviceAccountToken string, e
 func createSpace(spaceID string, creatorID string, serviceAccountToken string, env string) (int, error) {
 	client := &http.Client{}
 	url := fmt.Sprintf("%s/api/spaces/%s?creator=%s", getServerName(env, AUTHSERVICE), spaceID, creatorID)
-	fmt.Printf("Calling %s \n", url)
+	fmt.Printf("Calling POST %s \n", url)
 	req, err := http.NewRequest("POST", url, nil)
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", serviceAccountToken))
 	if err != nil {
@@ -65,6 +66,10 @@ func AddUsersToSpace(userList []*Data, spaceID string, spaceManagerIdentityID st
 		},
 	}
 
+	fmt.Printf("Adding %d users to the space %s ... \n", len(payload.Data[0].Ids), spaceID)
+	if len(payload.Data[0].Ids) == 0 {
+		return nil
+	}
 	code, err := addUsersToSpace(payload, spaceID, spaceManagerIdentityID, usertoken, env)
 	if err != nil {
 		return err
@@ -82,7 +87,7 @@ func addUsersToSpace(payload AssignRoleResourceRolesPayload, spaceID string, spa
 
 	client := &http.Client{}
 	url := fmt.Sprintf("%s/api/resources/%s/roles", getServerName(env, AUTHSERVICE), spaceID)
-	fmt.Printf("Calling %s \n", url)
+	fmt.Printf("Calling PUT %s \n", url)
 
 	buf := bytes.NewBuffer(nil)
 	enc := json.NewEncoder(buf)
@@ -92,12 +97,12 @@ func addUsersToSpace(payload AssignRoleResourceRolesPayload, spaceID string, spa
 	}
 
 	req, err := http.NewRequest("PUT", url, buf)
-
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", usertoken))
 	if err != nil {
 		fmt.Println(err)
 		return -1, err
 	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", usertoken))
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -120,4 +125,24 @@ type AssignRoleData struct {
 	Ids []string `json:"ids"`
 	// name of the role to assign
 	Role string `json:"role"`
+}
+
+// GetUsersToBeAddedToSpace finds out the diff between the 'who has been already assigned' and 'who needs to be assigned'
+func GetUsersToBeAddedToSpace(alreadyAssigned []*IdentityRolesData, collaborators []*Data) []*Data {
+	var toBeAdded []*Data
+	for _, collab := range collaborators {
+		if !IsUserAssigned(collab.Attributes.IdentityID, alreadyAssigned) {
+			toBeAdded = append(toBeAdded, collab)
+		}
+	}
+	return toBeAdded
+}
+
+func IsUserAssigned(identityId string, alreadyAssigned []*IdentityRolesData) bool {
+	for _, collab := range alreadyAssigned {
+		if collab.AssigneeID == identityId {
+			return true
+		}
+	}
+	return false
 }

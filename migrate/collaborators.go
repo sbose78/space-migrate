@@ -30,7 +30,7 @@ type Attributes struct {
 func GetCollaborators(spaceID string, env string) ([]*Data, error) {
 	client := &http.Client{}
 
-	next := fmt.Sprintf("%s/api/spaces/%s/collaborators?page[limit]=20", getServerName(env, WITSERVICE), spaceID)
+	next := fmt.Sprintf("%s/api/spaces/%s/collaborators?page[limit]=%d", getServerName(env, WITSERVICE), spaceID, PAGE_LIMIT)
 	url := ""
 
 	var fullReturnedUserList []*Data

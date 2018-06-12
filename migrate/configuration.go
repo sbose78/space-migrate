@@ -5,6 +5,7 @@ import "fmt"
 const (
 	AUTHSERVICE = "auth"
 	WITSERVICE  = "api"
+	PAGE_LIMIT  = 2
 )
 
 func getServerName(env, service string) string {
