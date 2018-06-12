@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 )
 
@@ -40,6 +41,7 @@ func createSpace(spaceID string, creatorID string, serviceAccountToken string, e
 		fmt.Println(err)
 		return -1, err
 	}
+	ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	fmt.Printf("Space API call %s returned %d \n", url, resp.StatusCode)
 
@@ -109,6 +111,7 @@ func addUsersToSpace(payload AssignRoleResourceRolesPayload, spaceID string, spa
 		fmt.Println(err)
 		return -1, err
 	}
+	ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	fmt.Printf("Authorization API call %s returned %d \n", url, resp.StatusCode)
 	return resp.StatusCode, nil
