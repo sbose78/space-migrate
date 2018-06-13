@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strings"
+	"time"
 
 	"github.com/satori/go.uuid"
 	"github.com/sbose78/space-migrate/migrate"
@@ -36,10 +37,11 @@ func validateSpaceMigration(spaceID uuid.UUID, serviceAccountToken string, env *
 
 func migrateSpace(spaceID uuid.UUID, spaceOwnerID string, serviceAccountToken string, env *string) error {
 	collaboratorList, err := migrate.GetCollaborators(spaceID.String(), *env)
+
 	if err != nil {
 		return err
 	}
-	fmt.Printf("\n*******\nThe space %s has %d collaborators incl. creator \n", spaceID, len(collaboratorList))
+	fmt.Printf("\n The space %s has %d collaborators incl. creator \n", spaceID, len(collaboratorList))
 
 	created, err := migrate.CreateSpace(spaceID.String(), spaceOwnerID, serviceAccountToken, *env)
 	if err != nil {
@@ -47,6 +49,8 @@ func migrateSpace(spaceID uuid.UUID, spaceOwnerID string, serviceAccountToken st
 	}
 
 	if !created { // possible only if space resource already exists.
+
+		originalListLen := len(collaboratorList)
 
 		// This API Call finds out of if space resource exists and if yes, who are the members.
 		existingAssignees, err := migrate.GetAssignees(spaceID.String(), serviceAccountToken, *env)
@@ -64,10 +68,11 @@ func migrateSpace(spaceID uuid.UUID, spaceOwnerID string, serviceAccountToken st
 		// If all the users are already added to the space, we do nothing.
 		collaboratorList = migrate.GetUsersToBeAddedToSpace(existingAssignees, collaboratorList)
 		if len(collaboratorList) == 0 {
-			fmt.Println("Assignees already present - skipping adding of contributors to the space")
+			fmt.Println("Assignees already present - skipping adding of contributors to this space")
 			return nil
 		}
 		// else - just go ahead and add who already isn't present.
+		fmt.Printf("\n unexpected : %d out of %d collaborators are missing in the new space resource, they will be added. \n", len(collaboratorList), originalListLen)
 	}
 
 	// Add the users to the space as a 'contributor'
@@ -86,13 +91,15 @@ func migrateSpace(spaceID uuid.UUID, spaceOwnerID string, serviceAccountToken st
 
 func migrateSpaces(ids []string, env *string, sessionState *string, privateKey *rsa.PrivateKey, serviceAccountToken string) error {
 
-	for _, id := range ids {
+	for userIDIndex, id := range ids {
 		if len(id) > 0 {
 			spaceOwnerID := strings.TrimSpace(id)
+
 			user, err := migrate.LoadUser(spaceOwnerID, *env)
 			if err != nil {
 				return err
 			}
+			fmt.Printf("\n----- Starting space migration for identity ID %s ---- ( %d/%d ) \n", spaceOwnerID, userIDIndex+1, len(ids))
 			fmt.Printf("%s, %s, %s\n", user.Data.Attributes.Username, user.Data.Attributes.Email, user.Data.Attributes.FullName)
 
 			spacesList, err := migrate.GetSpacesOwnedByIdentity(user.Data.Attributes.Username, *env)
@@ -100,12 +107,15 @@ func migrateSpaces(ids []string, env *string, sessionState *string, privateKey *
 				return err
 			}
 
-			for _, space := range spacesList {
+			for c, space := range spacesList {
+				fmt.Printf("\n--- Starting space migration for space ID %s for %s ---- ( %d/%d ) \n\n", (*space.ID).String(), user.Data.Attributes.Username, c+1, len(spacesList))
+				time.Sleep(5 * time.Second)
 				err = migrateSpace(*space.ID, spaceOwnerID, serviceAccountToken, env)
 				if err != nil {
 					return err
 				}
 			}
+			fmt.Printf("\n\n----- Completed space migration for identity ID %s -----\n\n", spaceOwnerID)
 
 		}
 	}
@@ -128,10 +138,12 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	serviceAccountTokenString := strings.TrimSpace(string(serviceAccountToken))
 
 	ids := migrate.GetUserIDs(*userIDLoc)
-	migrateSpaces(ids, env, nil, nil, string(serviceAccountToken))
+	migrateSpaces(ids, env, nil, nil, serviceAccountTokenString)
 	if err != nil {
+		fmt.Println(err)
 		panic(err)
 	}
 }
